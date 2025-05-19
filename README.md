@@ -35,7 +35,7 @@ Chương trình giải bài toán 8-Puzzle sử dụng nhiều thuật toán tì
   - Bộ nhớ sử dụng: 0.00123 MB
   - Bộ nhớ tối đa: 0.00456 MB
   - Số bước thực hiện: 23
-
+> ![BFS Animation](images/BFS.gif)
 #### Nhận xét
 - **Độ phức tạp thời gian:** O(b^d)
   - b: số nhánh trung bình
@@ -49,7 +49,7 @@ Chương trình giải bài toán 8-Puzzle sử dụng nhiều thuật toán tì
   - Tiêu tốn nhiều bộ nhớ cho các trường hợp phức tạp
   - Thời gian thực thi tăng nhanh với độ sâu của cây tìm kiếm
   - Không hiệu quả với không gian tìm kiếm lớn
- > ![BFS Animation](images/BFS.gif)
+ 
 ### 2. DFS (Depth-First Search)
 
 #### Đầu vào đơn giản
@@ -231,8 +231,13 @@ Chương trình giải bài toán 8-Puzzle sử dụng nhiều thuật toán tì
   - Thời gian thực thi: 0.00089 giây
   - Bộ nhớ sử dụng: 0.00067 MB
   - Bộ nhớ tối đa: 0.00289 MB
+<<<<<<< .mine
   - Số bước thực hiện: 3
  > ![Simple Hill Climbing Animation](images/SHC.gif)
+=======
+  - Số bước thực hiện: 4
+
+>>>>>>> .theirs
 #### Đầu vào phức tạp
 - **Evaluation:**
   - Thời gian thực thi: 0.01876 giây
