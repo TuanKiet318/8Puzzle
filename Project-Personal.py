@@ -11,8 +11,10 @@ import psutil
 import os
 import tracemalloc
 from tkinter import font as tkfont
+from datetime import datetime
+from PIL import Image
 
-# Định nghĩa trạng thái đích
+# Trạng thái đích của bài toán 8-Puzzle
 GOAL_STATE = [
     [1, 2, 3],
     [4, 5, 6],
@@ -20,347 +22,390 @@ GOAL_STATE = [
 ]
 
 def find_zero(state):
-    """Tìm vị trí ô trống (0) trong bảng"""
+    """Tìm vị trí của ô trống (số 0) trong ma trận trạng thái"""
     for i in range(3):
         for j in range(3):
             if state[i][j] == 0:
                 return i, j
 
 def get_neighbors(state):
-    """Tạo danh sách trạng thái có thể di chuyển"""
+    """Tạo danh sách các trạng thái có thể di chuyển từ trạng thái hiện tại"""
     x, y = find_zero(state)
     neighbors = []
-    moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Các hướng di chuyển: lên, xuống, trái, phải
     
     for dx, dy in moves:
         nx, ny = x + dx, y + dy
-        if 0 <= nx < 3 and 0 <= ny < 3:
-            new_state = [row[:] for row in state]
-            new_state[x][y], new_state[nx][ny] = new_state[nx][ny], new_state[x][y]
+        if 0 <= nx < 3 and 0 <= ny < 3:  # Kiểm tra vị trí mới có hợp lệ không
+            new_state = [row[:] for row in state]  # Tạo bản sao của trạng thái hiện tại
+            new_state[x][y], new_state[nx][ny] = new_state[nx][ny], new_state[x][y]  # Hoán đổi vị trí
             neighbors.append(new_state)
     
     return neighbors
 
 def bfs(initial_state):
-    """Thuật toán BFS để tìm lời giải"""
-    queue = deque([(initial_state, [])])
-    visited = set()
+    """Thuật toán BFS (Breadth-First Search) - Tìm kiếm theo chiều rộng"""
+
+    queue = deque([(initial_state, [])])  # Hàng đợi chứa (trạng thái hiện tại, đường đi)
+    visited = set()  # Tập các trạng thái đã thăm
     
     while queue:
-        state, path = queue.popleft()
-        if state == GOAL_STATE:
-            return path + [state]
+        state, path = queue.popleft()  # Lấy trạng thái đầu tiên từ hàng đợi
+        if state == GOAL_STATE:  # Nếu là trạng thái đích
+            return path + [state]  # Trả về đường đi từ trạng thái ban đầu đến đích
         
-        visited.add(tuple(map(tuple, state)))
+        visited.add(tuple(map(tuple, state)))  # Đánh dấu trạng thái đã thăm
         
-        for neighbor in get_neighbors(state):
-            if tuple(map(tuple, neighbor)) not in visited:
-                queue.append((neighbor, path + [state]))
+        for neighbor in get_neighbors(state):  # Xét các trạng thái con
+            if tuple(map(tuple, neighbor)) not in visited:  # Nếu chưa thăm
+                queue.append((neighbor, path + [state]))  # Thêm vào hàng đợi
     
-    return None
+    return None  # Không tìm thấy lời giải
 
-def dfs(initial_state):
-    """Thuật toán DFS để tìm lời giải"""
-    stack = [(initial_state, [])]
+# Thuật toán DFS có giới hạn độ sâu
+def dfs(initial_state, max_depth=30):
+    stack = [(initial_state, [], 0)]  # (trạng thái hiện tại, đường đi, độ sâu)
     visited = set()
-    
+    visited.add(tuple(map(tuple, initial_state)))
+
     while stack:
-        state, path = stack.pop()
-        
+        state, path, depth = stack.pop()
+
         if state == GOAL_STATE:
             return path + [state]
-        
-        visited.add(tuple(map(tuple, state)))
-        
-        for neighbor in get_neighbors(state):
-            if tuple(map(tuple, neighbor)) not in visited:
-                stack.append((neighbor, path + [state]))
-    
-    return None
+
+        if depth < max_depth:
+            for neighbor in get_neighbors(state):
+                neighbor_tuple = tuple(map(tuple, neighbor))
+                if neighbor_tuple not in visited:
+                    visited.add(neighbor_tuple)
+                    stack.append((neighbor, path + [state], depth + 1))
+
+    return None  # Không tìm thấy lời giải trong giới hạn độ sâu
 
 def uniform_cost_search(initial_state):
-    """Thuật toán Uniform Cost Search (UCS)"""
-    pq = [(0, initial_state, [])]
-    visited = set()
+    """Thuật toán Uniform Cost Search (UCS) - Tìm kiếm theo chi phí đồng nhất"""
+    pq = [(0, initial_state, [])]  # Hàng đợi ưu tiên chứa (chi phí, trạng thái, đường đi)
+    visited = set()  # Tập các trạng thái đã thăm
     
     while pq:
-        cost, state, path = heapq.heappop(pq)
+        cost, state, path = heapq.heappop(pq)  # Lấy trạng thái có chi phí nhỏ nhất
         
-        if state == GOAL_STATE:
-            return path + [state]
+        if state == GOAL_STATE:  # Nếu là trạng thái đích
+            return path + [state]  # Trả về đường đi
         
-        visited.add(tuple(map(tuple, state)))
+        visited.add(tuple(map(tuple, state)))  # Đánh dấu trạng thái đã thăm
         
-        for neighbor in get_neighbors(state):
-            if tuple(map(tuple, neighbor)) not in visited:
-                heapq.heappush(pq, (cost + 1, neighbor, path + [state]))
+        for neighbor in get_neighbors(state):  # Xét các trạng thái con
+            if tuple(map(tuple, neighbor)) not in visited:  # Nếu chưa thăm
+                heapq.heappush(pq, (cost + 1, neighbor, path + [state]))  # Thêm vào hàng đợi ưu tiên
     
-    return None
+    return None  # Không tìm thấy lời giải
 
 def iterative_deepening(initial_state, max_depth=20):
-    """Thuật toán ID"""
+    """Thuật toán ID (Iterative Deepening) - Tìm kiếm theo độ sâu tăng dần"""
     def dls(state, path, depth):
-        if state == GOAL_STATE:
-            return path + [state]
-        if depth == 0:
-            return None
+        """Hàm tìm kiếm theo độ sâu giới hạn"""
+        if state == GOAL_STATE:  # Nếu là trạng thái đích
+            return path + [state]  # Trả về đường đi
+        if depth == 0:  # Nếu đã đạt độ sâu tối đa
+            return None  # Không tìm thấy lời giải
         
-        for neighbor in get_neighbors(state):
-            result = dls(neighbor, path + [state], depth - 1)
-            if result:
+        for neighbor in get_neighbors(state):  # Xét các trạng thái con
+            result = dls(neighbor, path + [state], depth - 1)  # Tìm kiếm đệ quy
+            if result:  # Nếu tìm thấy lời giải
                 return result
         
-        return None
+        return None  # Không tìm thấy lời giải
     
-    for depth in range(max_depth):
-        result = dls(initial_state, [], depth)
-        if result:
+    for depth in range(max_depth):  # Tăng dần độ sâu tìm kiếm
+        result = dls(initial_state, [], depth)  # Tìm kiếm với độ sâu hiện tại
+        if result:  # Nếu tìm thấy lời giải
             return result
-    return None
+    return None  # Không tìm thấy lời giải
 
 def greedy(initial_state):
-    """Thuật toán Greedy """
+    """Thuật toán Greedy Best-First Search - Tìm kiếm tham lam"""
     def heuristic(state):
+        """Hàm đánh giá heuristic - số ô sai vị trí"""
         return sum(state[i][j] != GOAL_STATE[i][j] for i in range(3) for j in range(3))
     
-    pq = [(heuristic(initial_state), initial_state, [])]
-    visited = set()
+    pq = [(heuristic(initial_state), initial_state, [])]  # Hàng đợi ưu tiên
+    visited = set()  # Tập các trạng thái đã thăm
     
     while pq:
-        _, state, path = heapq.heappop(pq)
+        _, state, path = heapq.heappop(pq)  # Lấy trạng thái có giá trị heuristic nhỏ nhất
         
-        if state == GOAL_STATE:
-            return path + [state]
+        if state == GOAL_STATE:  # Nếu là trạng thái đích
+            return path + [state]  # Trả về đường đi
         
-        visited.add(tuple(map(tuple, state)))
+        visited.add(tuple(map(tuple, state)))  # Đánh dấu trạng thái đã thăm
         
-        for neighbor in get_neighbors(state):
-            if tuple(map(tuple, neighbor)) not in visited:
-                heapq.heappush(pq, (heuristic(neighbor), neighbor, path + [state]))
+        for neighbor in get_neighbors(state):  # Xét các trạng thái con
+            if tuple(map(tuple, neighbor)) not in visited:  # Nếu chưa thăm
+                heapq.heappush(pq, (heuristic(neighbor), neighbor, path + [state]))  # Thêm vào hàng đợi
     
-    return None
+    return None  # Không tìm thấy lời giải
 
 def heuristic(state):
+    """Hàm đánh giá heuristic - số ô sai vị trí"""
     return sum(state[i][j] != GOAL_STATE[i][j] for i in range(3) for j in range(3))
 
 def simple_hill_climbing(initial_state):
-    """Thuật toán Simple Hill Climbing"""
+    """Thuật toán Simple Hill Climbing - Leo đồi đơn giản"""
+    current = initial_state
+    path = [current]  # Lưu lại đường đi
+
+    while True:
+        if current == GOAL_STATE:
+            return path  # Đã đến đích
+
+        neighbors = get_neighbors(current)
+        if not neighbors:
+            return path  # Không còn neighbor tốt hơn, dừng lại
+
+        next_state = min(neighbors, key=heuristic, default=None)
+        # Nếu không cải thiện hoặc không có neighbor tốt hơn, dừng lại
+        if next_state is None or heuristic(next_state) >= heuristic(current):
+            return path
+
+        current = next_state
+        path.append(current)
+
+def astar(initial_state):
+    """Thuật toán A* - Kết hợp chi phí và heuristic"""
+    def heuristic(state):
+        return sum(state[i][j] != GOAL_STATE[i][j] for i in range(3) for j in range(3))
+    
+    pq = [(heuristic(initial_state), 0, initial_state, [])]  # (f, g, state, path)
+    visited = set()
+    
+    while pq:
+        f, g, state, path = heapq.heappop(pq)
+        if state == GOAL_STATE:
+            return path + [state]
+        visited.add(tuple(map(tuple, state)))
+        for neighbor in get_neighbors(state):
+            if tuple(map(tuple, neighbor)) not in visited:
+                new_g = g + 1
+                new_f = new_g + heuristic(neighbor)
+                heapq.heappush(pq, (new_f, new_g, neighbor, path + [state]))
+    return None
+
+def ida_star(initial_state):
+    """Thuật toán IDA* - Kết hợp ID và A*"""
+    def heuristic(state):
+        """Hàm đánh giá heuristic - số ô sai vị trí"""
+        return sum(state[i][j] != GOAL_STATE[i][j] for i in range(3) for j in range(3))
+    
+    def search(state, path, g, threshold):
+        """Hàm tìm kiếm đệ quy với ngưỡng f(n)"""
+        f = g + heuristic(state)  # Tính giá trị f(n)
+        if f > threshold:  # Nếu vượt ngưỡng
+            return f, None
+        if state == GOAL_STATE:  # Nếu là trạng thái đích
+            return f, path + [state]  # Trả về đường đi
+        
+        min_threshold = float("inf")  # Ngưỡng nhỏ nhất cho lần lặp tiếp
+        for neighbor in get_neighbors(state):  # Xét các trạng thái con
+            if neighbor not in path:  # Nếu chưa thăm
+                new_threshold, result = search(neighbor, path + [state], g + 1, threshold)  # Tìm kiếm đệ quy
+                if result:  # Nếu tìm thấy lời giải
+                    return new_threshold, result
+                min_threshold = min(min_threshold, new_threshold)  # Cập nhật ngưỡng
+        
+        return min_threshold, None  # Không tìm thấy lời giải
+
+    threshold = heuristic(initial_state)  # Khởi tạo ngưỡng
+    while True:
+        new_threshold, result = search(initial_state, [], 0, threshold)  # Tìm kiếm với ngưỡng hiện tại
+        if result:  # Nếu tìm thấy lời giải
+            return result
+        if new_threshold == float("inf"):  # Nếu không thể tìm thấy lời giải
+            return None
+        threshold = new_threshold  # Tăng ngưỡng cho lần lặp tiếp
+
+def steepest_ascent_hill_climbing(initial_state):
+    """Thuật toán Steepest Ascent Hill Climbing - Leo đồi dốc nhất"""
     current = initial_state
     path = [current]  # Lưu lại đường đi
     
     while True:
-        neighbors = get_neighbors(current)
-        next_state = min(neighbors, key=heuristic, default=None)
+        neighbors = get_neighbors(current)  # Lấy các trạng thái con
+        best_neighbor = min(neighbors, key=heuristic, default=None)  # Chọn trạng thái tốt nhất
         
-        if next_state and heuristic(next_state) < heuristic(current):
-            current = next_state
-            path.append(current)
-        else:
-            return path  # Trả về toàn bộ đường đi
-
-def astar(initial_state):
-    """Thuật toán A* để tìm lời giải"""
-    def heuristic(state):
-        return sum(state[i][j] != GOAL_STATE[i][j] for i in range(3) for j in range(3))
-    
-    pq = [(heuristic(initial_state), initial_state, [])]
-    visited = set()
-    
-    while pq:
-        _, state, path = heapq.heappop(pq)
-        
-        if state == GOAL_STATE:
-            return path + [state]
-        
-        visited.add(tuple(map(tuple, state)))
-        
-        for neighbor in get_neighbors(state):
-            if tuple(map(tuple, neighbor)) not in visited:
-                heapq.heappush(pq, (heuristic(neighbor), neighbor, path + [state]))
-    
-    return None
-
-def ida_star(initial_state):
-    """Thuật toán IDA* để tìm lời giải"""
-    def heuristic(state):
-        return sum(state[i][j] != GOAL_STATE[i][j] for i in range(3) for j in range(3))
-    
-    def search(state, path, g, threshold):
-        f = g + heuristic(state)
-        if f > threshold:
-            return f, None
-        if state == GOAL_STATE:
-            return f, path + [state]
-        
-        min_threshold = float("inf")
-        for neighbor in get_neighbors(state):
-            if neighbor not in path:
-                new_threshold, result = search(neighbor, path + [state], g + 1, threshold)
-                if result:
-                    return new_threshold, result
-                min_threshold = min(min_threshold, new_threshold)
-        
-        return min_threshold, None
-
-    threshold = heuristic(initial_state)
-    while True:
-        new_threshold, result = search(initial_state, [], 0, threshold)
-        if result:
-            return result
-        if new_threshold == float("inf"):
-            return None
-        threshold = new_threshold
-
-def steepest_ascent_hill_climbing(initial_state):
-    current = initial_state
-    path = [current]
-    while True:
-        neighbors = get_neighbors(current)
-        best_neighbor = min(neighbors, key=heuristic, default=None)
-        if best_neighbor and heuristic(best_neighbor) < heuristic(current):
+        if best_neighbor and heuristic(best_neighbor) < heuristic(current):  # Nếu có cải thiện
             current = best_neighbor
             path.append(current)
         else:
-            return path
+            return path  # Trả về đường đi đã tìm được
 
 def stochastic_hill_climbing(initial_state):
+    """Thuật toán Stochastic Hill Climbing - Leo đồi ngẫu nhiên"""
     current = initial_state
-    path = [current]
+    path = [current]  # Lưu lại đường đi
+    
     while True:
-        neighbors = get_neighbors(current)
-        better_neighbors = [n for n in neighbors if heuristic(n) < heuristic(current)]
-        if better_neighbors:
-            current = random.choice(better_neighbors)
+        neighbors = get_neighbors(current)  # Lấy các trạng thái con
+        better_neighbors = [n for n in neighbors if heuristic(n) < heuristic(current)]  # Lọc các trạng thái tốt hơn
+        
+        if better_neighbors:  # Nếu có trạng thái tốt hơn
+            current = random.choice(better_neighbors)  # Chọn ngẫu nhiên một trạng thái
             path.append(current)
         else:
-            return path
+            return path  # Trả về đường đi đã tìm được
 
 def simulated_annealing(initial_state, max_iterations=10000, initial_temp=100, cooling_rate=0.99):
+    """Thuật toán Simulated Annealing - Mô phỏng ủ kim loại"""
     current = initial_state
-    path = [current]
-    temp = initial_temp
+    path = [current]  # Lưu lại đường đi
+    temp = initial_temp  # Nhiệt độ ban đầu
     
-    for _ in range(max_iterations):
-        neighbors = get_neighbors(current)
-        if not neighbors:
+    for _ in range(max_iterations):  # Lặp tối đa max_iterations lần
+        neighbors = get_neighbors(current)  # Lấy các trạng thái con
+        if not neighbors:  # Nếu không có trạng thái con
             break
         
-        next_state = random.choice(neighbors)
-        delta_e = heuristic(current) - heuristic(next_state)
+        next_state = random.choice(neighbors)  # Chọn ngẫu nhiên một trạng thái
+        delta_e = heuristic(current) - heuristic(next_state)  # Tính độ chênh lệch
         
-        if delta_e > 0 or math.exp(delta_e / temp) > random.random():
+        if delta_e > 0 or math.exp(delta_e / temp) > random.random():  # Quyết định chấp nhận trạng thái mới
             current = next_state
             path.append(current)
         
-        temp *= cooling_rate
-        if heuristic(current) == 0:
+        temp *= cooling_rate  # Giảm nhiệt độ
+        if heuristic(current) == 0:  # Nếu đã đạt trạng thái đích
             break
     
-    return path
+    return path  # Trả về đường đi đã tìm được
 
 def beam_search(initial_state, beam_width=2):
-    """Thuật toán Beam Search"""
-    queue = [(heuristic(initial_state), initial_state, [])]
+    """Thuật toán Beam Search - Tìm kiếm chùm"""
+    queue = [(heuristic(initial_state), initial_state, [])]  # Hàng đợi chứa (heuristic, trạng thái, đường đi)
     
     while queue:
-        queue.sort()
+        queue.sort()  # Sắp xếp theo giá trị heuristic
         queue = queue[:beam_width]  # Chỉ giữ lại số lượng trạng thái tốt nhất theo beam_width
-        new_queue = []
+        new_queue = []  # Hàng đợi mới cho lần lặp tiếp
         
-        for _, state, path in queue:
-            if state == GOAL_STATE:
-                return path + [state]
+        for _, state, path in queue:  # Xét từng trạng thái trong hàng đợi
+            if state == GOAL_STATE:  # Nếu là trạng thái đích
+                return path + [state]  # Trả về đường đi
             
-            for neighbor in get_neighbors(state):
-                new_queue.append((heuristic(neighbor), neighbor, path + [state]))
+            for neighbor in get_neighbors(state):  # Xét các trạng thái con
+                new_queue.append((heuristic(neighbor), neighbor, path + [state]))  # Thêm vào hàng đợi mới
         
-        queue = new_queue
+        queue = new_queue  # Cập nhật hàng đợi
     
-    return None
+    return None  # Không tìm thấy lời giải
 
 def backtracking_search(initial_state, max_depth=30):
-    """Thuật toán Backtracking Search để giải 8-Puzzle"""
-    visited = set()
+    """Thuật toán Backtracking Search - Quay lui"""
+    visited = set()  # Tập các trạng thái đã thăm
 
     def backtrack(state, path, depth):
-        if state == GOAL_STATE:
-            return path + [state]
-        if depth == 0:
-            return None
+        """Hàm quay lui đệ quy"""
+        if state == GOAL_STATE:  # Nếu là trạng thái đích
+            return path + [state]  # Trả về đường đi
+        if depth == 0:  # Nếu đã đạt độ sâu tối đa
+            return None  # Không tìm thấy lời giải
         
-        visited.add(tuple(map(tuple, state)))
+        visited.add(tuple(map(tuple, state)))  # Đánh dấu trạng thái đã thăm
 
-        for neighbor in get_neighbors(state):
+        for neighbor in get_neighbors(state):  # Xét các trạng thái con
             neighbor_tuple = tuple(map(tuple, neighbor))
-            if neighbor_tuple not in visited:
-                result = backtrack(neighbor, path + [state], depth - 1)
-                if result:
+            if neighbor_tuple not in visited:  # Nếu chưa thăm
+                result = backtrack(neighbor, path + [state], depth - 1)  # Tìm kiếm đệ quy
+                if result:  # Nếu tìm thấy lời giải
                     return result
         
         visited.remove(tuple(map(tuple, state)))  # Quay lui: bỏ khỏi visited
-        return None
+        return None  # Không tìm thấy lời giải
 
-    return backtrack(initial_state, [], max_depth)
+    return backtrack(initial_state, [], max_depth)  # Bắt đầu tìm kiếm
 
 def local_search_csp(initial_state, max_steps=10000):
     """Thuật toán Local Search cho CSP - Min-Conflicts"""
     
     def conflicts(state):
-        # Số lượng ô sai vị trí
+        """Hàm đánh giá số lượng xung đột"""
         return sum(state[i][j] != GOAL_STATE[i][j] for i in range(3) for j in range(3))
     
     current = initial_state
-    path = [current]
+    path = [current]  # Lưu lại đường đi
     
-    for step in range(max_steps):
-        if conflicts(current) == 0:
-            return path  # Đã đạt mục tiêu
+    for step in range(max_steps):  # Lặp tối đa max_steps lần
+        if conflicts(current) == 0:  # Nếu không còn xung đột
+            return path  # Trả về đường đi
         
-        neighbors = get_neighbors(current)
-        if not neighbors:
+        neighbors = get_neighbors(current)  # Lấy các trạng thái con
+        if not neighbors:  # Nếu không có trạng thái con
             break
         
-        # Chọn neighbor ít conflict nhất
-        next_state = min(neighbors, key=conflicts)
-        if conflicts(next_state) >= conflicts(current):
-            # Không cải thiện -> chọn ngẫu nhiên neighbor
-            next_state = random.choice(neighbors)
+        next_state = min(neighbors, key=conflicts)  # Chọn trạng thái ít xung đột nhất
+        if conflicts(next_state) >= conflicts(current):  # Nếu không cải thiện
+            next_state = random.choice(neighbors)  # Chọn ngẫu nhiên một trạng thái
         
         current = next_state
         path.append(current)
     
-    return path  # Nếu max_steps hết mà chưa đến goal thì trả về đường đi đã thực hiện
+    return path  # Trả về đường đi đã tìm được
 
 def draw_board(state, screen):
-    screen.fill((255, 255, 255))
-    font = pygame.font.Font(None, 50)
-    TILE_SIZE = 100
+    """Vẽ bảng trạng thái hiện tại lên màn hình"""
+    screen.fill((255, 255, 255))  # Xóa màn hình với màu trắng
+    font = pygame.font.Font(None, 50)  # Tạo font chữ
+    TILE_SIZE = 100  # Kích thước mỗi ô
     
     for i in range(3):
         for j in range(3):
             value = state[i][j]
-            if value != 0:
-                pygame.draw.rect(screen, (100, 100, 250), (j*TILE_SIZE, i*TILE_SIZE, TILE_SIZE, TILE_SIZE))
-                text = font.render(str(value), True, (255, 255, 255))
-                screen.blit(text, (j*TILE_SIZE + TILE_SIZE//3, i*TILE_SIZE + TILE_SIZE//3))
+            if value != 0:  # Nếu không phải ô trống
+                pygame.draw.rect(screen, (100, 100, 250), (j*TILE_SIZE, i*TILE_SIZE, TILE_SIZE, TILE_SIZE))  # Vẽ ô
+                text = font.render(str(value), True, (255, 255, 255))  # Tạo text
+                screen.blit(text, (j*TILE_SIZE + TILE_SIZE//3, i*TILE_SIZE + TILE_SIZE//3))  # Vẽ text
     
-    pygame.display.flip()
+    pygame.display.flip()  # Cập nhật màn hình
 
 def visualize_solution(solution, delay=500):
+    """Hiển thị quá trình giải bài toán và lưu ảnh từng bước, sau đó tạo GIF"""
     pygame.init()
     screen = pygame.display.set_mode((300, 300))
     pygame.display.set_caption("8-Puzzle Solver")
-    
-    for step in range(len(solution)):
-        draw_board(solution[step], screen)
-        pygame.time.wait(delay)  # Tự động chuyển sau 'delay' mili-giây
+    screenshots_dir = "screenshots"
+    if not os.path.exists(screenshots_dir):
+        os.makedirs(screenshots_dir)
+    image_paths = []
+
+    prev_state = None
+    for i, state in enumerate(solution):
+        draw_board(state, screen)
+        pygame.time.wait(delay)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
-    
-    pygame.time.wait(2000)  # Đợi 2 giây trước khi đóng cửa sổ
+        # Lưu ảnh màn hình pygame
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join(screenshots_dir, f"step_{i+1}_{timestamp}.png")
+        pygame.image.save(screen, filename)
+        image_paths.append(filename)
+
+    pygame.time.wait(1000)
     pygame.quit()
+
+    # Tạo GIF từ các ảnh đã lưu
+    if image_paths:
+        create_gif(image_paths, os.path.join(screenshots_dir, f"puzzle_{timestamp}.gif"))
+        # Xóa các file ảnh sau khi tạo GIF (nếu muốn)
+        for path in image_paths:
+            os.remove(path)
+
+def create_gif(image_files, output_file):
+    """Tạo file GIF từ danh sách ảnh"""
+    from PIL import Image
+    frames = [Image.open(img) for img in image_files]
+    frames[0].save(output_file, format='GIF', append_images=frames[1:], save_all=True, duration=500, loop=0)
 
 def evaluate_algorithm(algorithm_func, initial_state):
     """Đánh giá hiệu suất của thuật toán"""
@@ -386,7 +431,12 @@ def evaluate_algorithm(algorithm_func, initial_state):
     
     # Tính số bước
     steps = len(solution) - 1 if solution else 0
-    
+
+    # In ra console bộ nhớ sử dụng
+    print(f"Bộ nhớ ban đầu: {initial_memory:.5f} MB")
+    print(f"Bộ nhớ hiện tại: {current_memory:.5f} MB")
+    print(f"Bộ nhớ tối đa: {max_memory:.5f} MB")
+
     return {
         "execution_time": execution_time,
         "initial_memory": initial_memory,
@@ -397,10 +447,10 @@ def evaluate_algorithm(algorithm_func, initial_state):
     }
 
 def start_solver():
-    """Xử lý khi nhấn nút 'Giải' trong Tkinter"""
+    """Xử lý khi nhấn nút 'Giải' trong giao diện"""
     try:
-        initial_state = [[int(entry.get()) for entry in row] for row in entries]
-        algorithm = algorithm_var.get()
+        initial_state = [[int(entry.get()) for entry in row] for row in entries]  # Lấy trạng thái ban đầu
+        algorithm = algorithm_var.get()  # Lấy thuật toán được chọn
         
         algorithms = {
             "BFS": bfs,
@@ -422,7 +472,7 @@ def start_solver():
         # Đánh giá thuật toán
         results = evaluate_algorithm(algorithms[algorithm], initial_state)
         
-        if results["solution"]:
+        if results["solution"]:  # Nếu tìm thấy lời giải
             # Hiển thị kết quả đánh giá
             evaluation_message = f"""Kết quả đánh giá thuật toán {algorithm}:
 Thời gian thực thi: {results['execution_time']:.5f} giây
@@ -442,11 +492,12 @@ Số bước thực hiện: {results['steps']}"""
         messagebox.showerror("Lỗi", f"Có lỗi xảy ra: {str(e)}")
 
 if __name__ == "__main__":
+    # Khởi tạo cửa sổ chính
     root = tk.Tk()
     root.title("8-Puzzle Solver")
     root.configure(bg='#f0f0f0')
     
-    # Set window size and position
+    # Thiết lập kích thước và vị trí cửa sổ
     window_width = 500
     window_height = 600
     screen_width = root.winfo_screenwidth()
@@ -455,21 +506,21 @@ if __name__ == "__main__":
     y = (screen_height - window_height) // 2
     root.geometry(f"{window_width}x{window_height}+{x}+{y}")
     
-    # Create main frame with padding
+    # Tạo frame chính với padding
     main_frame = tk.Frame(root, bg='#f0f0f0', padx=20, pady=20)
     main_frame.pack(expand=True, fill='both')
     
-    # Title
+    # Tiêu đề
     title_font = tkfont.Font(family="Helvetica", size=24, weight="bold")
     title_label = tk.Label(main_frame, text="8-Puzzle Solver", font=title_font, bg='#f0f0f0', fg='#2c3e50')
     title_label.pack(pady=(0, 20))
     
-    # Create frame for puzzle input
+    # Tạo frame cho nhập liệu
     input_frame = tk.LabelFrame(main_frame, text="Nhập trạng thái ban đầu", font=("Helvetica", 12), 
                               bg='#f0f0f0', fg='#2c3e50', padx=10, pady=10)
     input_frame.pack(pady=10, fill='x')
     
-    # Create grid for entries with custom styling
+    # Tạo lưới cho các ô nhập liệu
     entries = []
     for i in range(3):
         row_entries = []
@@ -480,17 +531,17 @@ if __name__ == "__main__":
             row_entries.append(entry)
         entries.append(row_entries)
     
-    # Configure grid weights
+    # Cấu hình trọng số cho lưới
     for i in range(3):
         input_frame.grid_columnconfigure(i, weight=1)
         input_frame.grid_rowconfigure(i, weight=1)
     
-    # Algorithm selection frame
+    # Frame chọn thuật toán
     algo_frame = tk.LabelFrame(main_frame, text="Chọn thuật toán", font=("Helvetica", 12),
                              bg='#f0f0f0', fg='#2c3e50', padx=10, pady=10)
     algo_frame.pack(pady=10, fill='x')
     
-    # Style for combobox
+    # Tạo style cho combobox
     style = ttk.Style()
     style.configure('Custom.TCombobox', 
                    fieldbackground='#ffffff',
@@ -498,6 +549,7 @@ if __name__ == "__main__":
                    foreground='#2c3e50',
                    arrowcolor='#2c3e50')
     
+    # Tạo combobox chọn thuật toán
     algorithm_var = tk.StringVar(root)
     algorithm_var.set("BFS")
     algorithms = ["BFS", "DFS", "UCS", "ID", "Greedy", "A*", "IDA*", 
@@ -510,7 +562,7 @@ if __name__ == "__main__":
                              font=("Helvetica", 12), style='Custom.TCombobox')
     algo_combo.pack(fill='x', padx=5, pady=5)
     
-    # Solve button with custom styling
+    # Nút giải với style tùy chỉnh
     solve_button = tk.Button(main_frame, text="Giải", command=start_solver,
                            font=("Helvetica", 14, "bold"),
                            bg='#3498db', fg='white',
@@ -521,7 +573,7 @@ if __name__ == "__main__":
                            cursor='hand2')
     solve_button.pack(pady=20)
     
-    # Add hover effect for button
+    # Thêm hiệu ứng hover cho nút
     def on_enter(e):
         solve_button['background'] = '#2980b9'
     
@@ -531,7 +583,7 @@ if __name__ == "__main__":
     solve_button.bind("<Enter>", on_enter)
     solve_button.bind("<Leave>", on_leave)
     
-    # Add some instructions
+    # Thêm hướng dẫn
     instructions = """Hướng dẫn:
 1. Nhập trạng thái ban đầu của puzzle (0-8)
 2. Chọn thuật toán giải
